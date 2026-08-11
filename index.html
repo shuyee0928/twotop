@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>수학 학력진단 학습성과분석표 System</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- KaTeX for Math Equations -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mirae: {
+                            blue: '#1a5f96',
+                            darkblue: '#0d3c63',
+                            orange: '#f37023',
+                            lightbg: '#f8fafc',
+                            green: '#10b981',
+                            yellow: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        /* Print optimization */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 10mm 8mm;
+            }
+            body { 
+                background: white !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print { display: none !important; }
+            #page-search { display: none !important; }
+            #page-report { display: block !important; margin: 0 !important; max-width: 100% !important; padding: 0 !important; }
+            .print-container { 
+                box-shadow: none !important; 
+                margin: 0 !important; 
+                width: 100% !important; 
+                max-width: 100% !important; 
+                border: none !important; 
+            }
+            .page-break { page-break-before: always; }
+            canvas { max-width: 100% !important; }
+        }
+
+        .stair-step {
+            transition: all 0.3s ease;
+        }
+        .stair-active {
+            transform: scale(1.03);
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.15));
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen pb-12">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-mirae-darkblue text-white shadow-md sticky top-0 z-40 no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateToPage('search')">
+                <div class="bg-mirae-orange p-2 rounded-lg font-bold text-lg">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight">학습성과분석표 스마트 리포트</h1>
+                    <p class="text-xs text-blue-200">구글 시트 연동 학력진단 DB 맞춤 분석 시스템</p>
+                </div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <div class="flex items-center space-x-2">
+                <button id="nav-btn-search" onclick="navigateToPage('search')" class="bg-slate-700 hover:bg-slate-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-magnifying-glass"></i> 학생/시험지 조회
+                </button>
+                <button id="nav-btn-print" onclick="triggerPrintReport()" class="hidden bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow">
+                    <i class="fa-solid fa-print"></i> 분석표 인쇄 / PDF 저장
+                </button>
+                <button id="nav-btn-edit" onclick="toggleEditorModal()" class="hidden bg-slate-700 hover:bg-slate-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-pen-to-square"></i> 답안 수정/재채점
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- PAGE 1: SEARCH & LOOKUP PAGE -->
+    <main id="page-search" class="max-w-4xl mx-auto px-4 mt-10">
+        <!-- Hero Title Box -->
+        <div class="text-center mb-8">
+            <span class="bg-blue-100 text-mirae-blue text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-2 inline-block">Google Sheets DB Sync</span>
+            <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900">학습성과분석표 조회 시스템</h2>
+            <p class="text-sm text-slate-500 mt-2">시험지 코드와 학생 이름을 입력하여 20문항 메타데이터 기반 성적 분석표를 생성합니다.</p>
+        </div>
+
+        <!-- Search Form Card -->
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200 p-6 md:p-8 mb-8">
+            <form onsubmit="handleSearch(event)" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Student Name Input -->
+                    <div>
+                        <label for="input-search-student" class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">
+                            <i class="fa-solid fa-user text-mirae-orange mr-1"></i> 학생 이름
+                        </label>
+                        <div class="relative">
+                            <input type="text" id="input-search-student" placeholder="예: 권하준, 이수현, 김철수" required
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-mirae-blue focus:border-mirae-blue outline-none transition">
+                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        </div>
+                    </div>
+
+                    <!-- Test Code Input -->
+                    <div>
+                        <label for="input-search-testcode" class="block text-xs font-extrabold text-slate-700 uppercase tracking-wider mb-2">
+                            <i class="fa-solid fa-barcode text-mirae-blue mr-1"></i> 시험지 코드
+                        </label>
+                        <div class="relative">
+                            <input type="text" id="input-search-testcode" placeholder="예: L-1, M, TEST01" required
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl font-bold text-slate-800 text-sm focus:bg-white focus:ring-2 focus:ring-mirae-blue focus:border-mirae-blue outline-none transition">
+                            <i class="fa-solid fa-barcode absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Notification Box for Unregistered / Mismatched Search -->
+                <div id="search-error-box" class="hidden bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-700 flex items-start gap-2.5">
+                    <i class="fa-solid fa-circle-exclamation text-rose-500 text-base mt-0.5"></i>
+                    <div>
+                        <div class="font-bold text-rose-800 mb-0.5" id="search-error-title">학생과 시험지 코드가 일치하지 않거나 존재하지 않습니다.</div>
+                        <div id="search-error-msg">구글 시트 데이터베이스에 등록된 이름과 시험지 코드가 정확히 일치하는지 확인해 주세요.</div>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="w-full bg-mirae-orange hover:bg-orange-600 text-white font-extrabold py-3.5 px-6 rounded-xl text-base shadow-lg hover:shadow-orange-200 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass"></i> 학습성과분석표 조회하기
+                </button>
+            </form>
+
+            <!-- Quick Demo Selectors -->
+            <div class="mt-8 pt-6 border-t border-slate-100">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">빠른 조회 샘플 (클릭 시 즉시 이동):</div>
+                <div id="quick-sample-buttons" class="flex flex-wrap gap-2">
+                    <button onclick="quickSelect('이영희', '초4_L1')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-check text-mirae-orange"></i> 이영희 (초4_L1)
+                    </button>
+                    <button onclick="quickSelect('권하준', 'L-1')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-child text-mirae-orange"></i> 권하준 (초4 진단 L-1)
+                    </button>
+                    <button onclick="quickSelect('이수현', 'M')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-graduation-cap text-mirae-blue"></i> 이수현 (고2 대수 M)
+                    </button>
+                    <button onclick="quickSelect('박수진', '고등_M')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-graduate text-pink-600"></i> 박수진 (고등_M)
+                    </button>
+                    <button onclick="quickSelect('박민수', '고등_M')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-graduate text-purple-600"></i> 박민수 (고등_M)
+                    </button>
+                    <button onclick="quickSelect('김철수', '초4_L1')" class="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-mirae-blue border border-slate-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-user-check text-emerald-600"></i> 김철수 (초4_L1)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Google Sheets DB Config Panel -->
+        <div class="bg-slate-800 text-slate-200 rounded-2xl p-6 shadow-md border border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-database text-emerald-400"></i>
+                    <h3 class="font-extrabold text-sm text-white">연동된 Google Sheets 데이터베이스 정보</h3>
+                </div>
+                <button onclick="fetchSheetData()" id="btn-sync-data" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate"></i> 최신 DB 동기화
+                </button>
+            </div>
+            
+            <div class="space-y-2 text-xs text-slate-300">
+                <div class="flex items-center gap-2 bg-slate-900/60 p-2.5 rounded-lg">
+                    <span class="font-bold text-amber-400 min-w-[110px]">[1] 메타데이터:</span>
+                    <a href="https://docs.google.com/spreadsheets/d/1r-UNJYUcYDiYouBcbl4axaatRnlVSXD2Np-hXaSiaNs/edit?gid=618018693" target="_blank" class="truncate text-blue-300 hover:underline">
+                        시험지 및 20문항 메타데이터 (Google Sheet ID: 1r-UNJYUcYDiYouBcbl4axaatRnlVSXD2Np-hXaSiaNs)
+                    </a>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-900/60 p-2.5 rounded-lg">
+                    <span class="font-bold text-amber-400 min-w-[110px]">[2] 답안 데이터:</span>
+                    <a href="https://docs.google.com/spreadsheets/d/1jy7FJCW2-s-M-8HtKzVNyQUynoCowU-ichsjyykuNCE/edit?gid=322593703" target="_blank" class="truncate text-blue-300 hover:underline">
+                        학생별 답안 데이터 (Google Sheet ID: 1jy7FJCW2-s-M-8HtKzVNyQUynoCowU-ichsjyykuNCE)
+                    </a>
+                </div>
+            </div>
+            <div id="status-sync" class="mt-3 text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                <i class="fa-solid fa-circle-check"></i> 데이터베이스 준비 완료 (자동 폴백 및 실시간 지원)
+            </div>
+        </div>
+    </main>
+
+    <!-- PAGE 2: LEARNING ANALYSIS REPORT PAGE -->
+    <main id="page-report" class="hidden max-w-6xl mx-auto px-4 mt-6">
+
+        <!-- Top Action Bar for Report View -->
+        <div class="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <button onclick="navigateToPage('search')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-arrow-left"></i> 다른 학생/시험지 조회
+                </button>
+                <span id="badge-search-query" class="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-mirae-blue">
+                    권하준 (L-1)
+                </span>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="triggerPrintReport()" class="px-4 py-1.5 rounded-lg text-xs font-bold bg-mirae-orange hover:bg-orange-600 text-white transition shadow flex items-center gap-1.5">
+                    <i class="fa-solid fa-print"></i> 분석표 인쇄
+                </button>
+            </div>
+        </div>
+
+        <!-- REPORT DOCUMENT CONTAINER -->
+        <div class="print-container bg-white shadow-xl rounded-2xl overflow-hidden border border-slate-200 border-t-8 border-t-mirae-blue">
+            
+            <!-- Report Header Section -->
+            <div class="p-6 md:p-8 bg-gradient-to-b from-slate-50 to-white border-b border-slate-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="badge-academy" class="bg-mirae-blue text-white text-xs font-bold px-2.5 py-0.5 rounded">투탑수학전문학원</span>
+                            <span id="badge-period" class="bg-slate-100 text-slate-600 text-xs font-medium px-2.5 py-0.5 rounded border border-slate-200">2026.08 진단평가</span>
+                        </div>
+                        <h2 id="report-title" class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">학습성과분석표</h2>
+                        <p id="report-subtitle" class="text-sm text-slate-500 mt-1">학력진단테스트 영역별 분석 결과</p>
+                    </div>
+
+                    <!-- Student Info Box -->
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center min-w-[320px]">
+                        <div>
+                            <div class="text-xs text-slate-400 font-semibold mb-0.5">이름</div>
+                            <div id="info-student-name" class="text-base font-extrabold text-slate-800">-</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-semibold mb-0.5">학년/과정</div>
+                            <div id="info-grade" class="text-base font-extrabold text-slate-800">-</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-semibold mb-0.5">출석/결석</div>
+                            <div class="text-base font-extrabold text-emerald-600"><span id="info-attend">12</span>일 / <span id="info-absent">0</span>일</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 font-semibold mb-0.5">시험지 코드</div>
+                            <div id="info-test-name" class="text-xs font-bold text-mirae-blue truncate">-</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top Summary & Stair Level Graphic -->
+            <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-12 gap-6 items-center border-b border-slate-200 bg-white">
+                
+                <!-- Overall Score Gauge Badge -->
+                <div class="md:col-span-4 flex flex-col items-center justify-center p-6 bg-slate-50 rounded-2xl border border-slate-200 text-center">
+                    <span class="text-xs font-extrabold text-mirae-blue uppercase tracking-wider mb-2">종합 성취도</span>
+                    <div class="relative w-32 h-32 flex items-center justify-center">
+                        <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path class="text-slate-200" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                            <path id="score-circle-path" class="text-mirae-orange transition-all duration-1000 ease-out" stroke-dasharray="0, 100" stroke-width="3.5" stroke-linecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        </svg>
+                        <div class="absolute flex flex-col items-center">
+                            <span id="text-overall-score" class="text-3xl font-black text-slate-900">0</span>
+                            <span class="text-xs text-slate-400 font-semibold">/ 100점</span>
+                        </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-1.5">
+                        <span id="badge-level-text" class="px-3 py-1 bg-mirae-orange text-white text-xs font-bold rounded-full">-</span>
+                    </div>
+                </div>
+
+                <!-- Stair Graphic ("나의 위치") -->
+                <div class="md:col-span-8 bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-extrabold text-slate-700 flex items-center gap-2">
+                            <i class="fa-solid fa-stairs text-mirae-orange"></i> 나의 위치 (성취도 구간)
+                        </h3>
+                        <span class="text-xs text-slate-400">학습 성취도별 5단계 기준</span>
+                    </div>
+
+                    <!-- Stair Graphical Representation -->
+                    <div class="grid grid-cols-5 gap-1.5 sm:gap-2 items-end h-32 pt-4">
+                        <div id="stair-1" class="stair-step flex flex-col items-center justify-between bg-sky-400 text-white rounded-t-lg p-2 h-12 transition-all">
+                            <span class="text-[10px] font-bold">0~30</span>
+                            <span id="stair-pin-1" class="hidden text-xs bg-white text-sky-600 rounded-full w-4 h-4 flex items-center justify-center font-black shadow">✓</span>
+                        </div>
+                        <div id="stair-2" class="stair-step flex flex-col items-center justify-between bg-emerald-500 text-white rounded-t-lg p-2 h-16 transition-all">
+                            <span class="text-[10px] font-bold">30~50</span>
+                            <span id="stair-pin-2" class="hidden text-xs bg-white text-emerald-600 rounded-full w-4 h-4 flex items-center justify-center font-black shadow">✓</span>
+                        </div>
+                        <div id="stair-3" class="stair-step flex flex-col items-center justify-between bg-amber-400 text-white rounded-t-lg p-2 h-20 transition-all">
+                            <span class="text-[10px] font-bold">50~70</span>
+                            <span id="stair-pin-3" class="hidden text-xs bg-white text-amber-600 rounded-full w-4 h-4 flex items-center justify-center font-black shadow">✓</span>
+                        </div>
+                        <div id="stair-4" class="stair-step flex flex-col items-center justify-between bg-rose-500 text-white rounded-t-lg p-2 h-24 transition-all">
+                            <span class="text-[10px] font-bold">70~90</span>
+                            <span id="stair-pin-4" class="hidden text-xs bg-white text-rose-600 rounded-full w-4 h-4 flex items-center justify-center font-black shadow">✓</span>
+                        </div>
+                        <div id="stair-5" class="stair-step flex flex-col items-center justify-between bg-teal-600 text-white rounded-t-lg p-2 h-28 transition-all">
+                            <span class="text-[10px] font-bold">90~100</span>
+                            <span id="stair-pin-5" class="hidden text-xs bg-white text-teal-700 rounded-full w-4 h-4 flex items-center justify-center font-black shadow">✓</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Qualitative Review Text -->
+            <div class="p-6 md:p-8 border-b border-slate-200 bg-amber-50/40">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-clipboard-check text-mirae-orange"></i> 학습 결과 총평
+                    </h3>
+                    <span class="text-xs font-semibold text-slate-400">선생님 피드백</span>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-amber-200 shadow-sm">
+                    <p id="text-overall-review" class="text-sm text-slate-700 leading-relaxed font-normal">
+                        분석 중...
+                    </p>
+                </div>
+            </div>
+
+            <!-- Domain Breakdowns Section -->
+            <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-8 border-b border-slate-200">
+                <div>
+                    <h3 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-layer-group text-mirae-blue"></i> 내용 영역별 성취도
+                    </h3>
+                    <div id="container-content-bars" class="space-y-3"></div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-extrabold text-slate-800 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-brain text-mirae-orange"></i> 평가 영역별 성취도 (인지적 영역)
+                    </h3>
+                    <div id="container-eval-bars" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Cumulative Trend Chart -->
+            <div class="p-6 md:p-8 border-b border-slate-200 bg-slate-50/50">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-column text-mirae-blue"></i> 회차별 학습량 및 성취도 누적 그래프
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">풀이 문항수(막대) 및 성취도 점수(꺾은선) 추이 분석</p>
+                    </div>
+                    <div class="flex items-center gap-4 text-xs font-semibold">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-amber-500 rounded-sm"></span> 문항수</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 bg-lime-500 rounded-full"></span> 성취도(%)</span>
+                    </div>
+                </div>
+                <div class="h-64 bg-white p-4 rounded-xl border border-slate-200">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Item Analysis Table -->
+            <div class="p-6 md:p-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h3 class="text-sm font-extrabold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-mirae-orange"></i> 문항별 상세 성취도 및 분석표
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">각 항목을 클릭하면 문제 풀이 해설 및 풀이 팁을 볼 수 있습니다.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400 font-semibold">필터:</span>
+                        <select id="select-filter-status" onchange="renderQuestionTable()" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white font-medium focus:ring-2 focus:ring-mirae-blue">
+                            <option value="all">전체 문항 (20개)</option>
+                            <option value="wrong">틀린 문항만 보기</option>
+                            <option value="correct">맞힌 문항만 보기</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                    <table class="w-full text-xs text-left text-slate-700">
+                        <thead class="bg-slate-100 text-slate-700 uppercase font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="py-3 px-3 text-center">번호</th>
+                                <th class="py-3 px-3">단원 / 영역</th>
+                                <th class="py-3 px-3">출제 주요 개념</th>
+                                <th class="py-3 px-3 text-center">평가 영역</th>
+                                <th class="py-3 px-3 text-center">정답</th>
+                                <th class="py-3 px-3 text-center">학생 답안</th>
+                                <th class="py-3 px-3 text-center">결과</th>
+                                <th class="py-3 px-3 text-center">상세보기</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-questions-body" class="divide-y divide-slate-200 bg-white">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-slate-800 text-slate-300 p-6 flex flex-col sm:flex-row items-center justify-between text-xs gap-4 border-t border-slate-700">
+                <div>
+                    <div class="font-bold text-sm text-white mb-1" id="footer-academy-name">투탑수학전문학원 / 미래엔 북수교실</div>
+                    <div>충남 아산시 배방읍 북수로 155 (북수리) | ☎ 041-415-2291 / 010-3767-8522</div>
+                </div>
+                <div class="text-slate-400 text-right">
+                    <span>발행일: 2026년 08월 11일</span><br>
+                    <span>스마트 수학학습 진단분석 시스템 v3.0 (Google Sheets 연동판)</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Answer Edit Notice Modal (No alert) -->
+    <div id="modal-notice" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-200">
+            <div class="w-12 h-12 bg-blue-100 text-mirae-blue rounded-full flex items-center justify-center mx-auto mb-3 text-xl">
+                <i class="fa-solid fa-pen-to-square"></i>
+            </div>
+            <h4 class="font-extrabold text-slate-800 text-base mb-2">답안 수정 / 재채점 기능</h4>
+            <p class="text-xs text-slate-500 mb-5 leading-relaxed">구글 시트 실시간 데이터와 동기화 중입니다. 원본 구글 시트에서 답안 변경 시 '최신 DB 동기화' 버튼을 눌러주세요.</p>
+            <button onclick="closeNoticeModal()" class="w-full bg-mirae-blue hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl text-xs transition">
+                확인
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal: Question Solution Detail -->
+    <div id="modal-question" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-slate-200">
+            <div class="p-5 bg-mirae-darkblue text-white flex items-center justify-between rounded-t-2xl">
+                <div class="flex items-center gap-2">
+                    <span id="modal-q-badge" class="bg-mirae-orange px-2.5 py-0.5 rounded text-xs font-bold">Q1</span>
+                    <h4 id="modal-q-title" class="font-bold text-base">문항 상세 풀이 및 개별 분석</h4>
+                </div>
+                <button onclick="closeQuestionModal()" class="text-slate-300 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="text-xs font-bold text-slate-400 mb-1">문제 설명</div>
+                    <div id="modal-q-text" class="text-sm font-semibold text-slate-800 leading-relaxed"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                        <span class="text-emerald-700 font-bold block mb-1">정답</span>
+                        <span id="modal-q-answer" class="text-sm font-black text-emerald-900"></span>
+                    </div>
+                    <div id="modal-q-user-box" class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <span class="text-blue-700 font-bold block mb-1">학생 답안</span>
+                        <span id="modal-q-user" class="text-sm font-black text-blue-900"></span>
+                    </div>
+                </div>
+
+                <div>
+                    <h5 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5"><i class="fa-solid fa-lightbulb text-amber-500"></i> 핵심 개념 및 해설</h5>
+                    <div id="modal-q-solution" class="text-xs text-slate-700 leading-relaxed bg-amber-50/50 p-3.5 rounded-xl border border-amber-200 font-mono"></div>
+                </div>
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-200 text-right rounded-b-2xl">
+                <button onclick="closeQuestionModal()" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Google Sheets URLs provided by user.
+        // NOTE ON "Failed to fetch": the `/export?format=csv` endpoint is meant
+        // for direct browser navigation/download, not for cross-origin fetch()
+        // calls from another page - many browsers refuse it outright (no CORS
+        // headers on the response), which surfaces as a generic "Failed to
+        // fetch" TypeError with no further detail. The `/gviz/tq?tqx=out:csv`
+        // endpoint is the one Google actually documents for embedding sheet
+        // data into external web pages/apps, and reliably sends the CORS
+        // headers a fetch() call needs. We try gviz first and fall back to
+        // export as a second attempt.
+        const SHEET_META_ID = '1r-UNJYUcYDiYouBcbl4axaatRnlVSXD2Np-hXaSiaNs';
+        const SHEET_META_GID = '618018693';
+        const SHEET_ANSWERS_ID = '1jy7FJCW2-s-M-8HtKzVNyQUynoCowU-ichsjyykuNCE';
+        const SHEET_ANSWERS_GID = '322593703';
+
+        const SHEET_METADATA_URL_GVIZ = `https://docs.google.com/spreadsheets/d/${SHEET_META_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_META_GID}`;
+        const SHEET_METADATA_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_META_ID}/export?format=csv&gid=${SHEET_META_GID}`;
+        const SHEET_ANSWERS_URL_GVIZ = `https://docs.google.com/spreadsheets/d/${SHEET_ANSWERS_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_ANSWERS_GID}`;
+        const SHEET_ANSWERS_URL_EXPORT = `https://docs.google.com/spreadsheets/d/${SHEET_ANSWERS_ID}/export?format=csv&gid=${SHEET_ANSWERS_GID}`;
+
+        let sheetStudentsData = [];
+        let sheetTestsData = {};
+        let currentReportData = null;
+        let trendChartInstance = null;
+        // NEW: tracks whether a real Google Sheets sync has ever succeeded.
+        // Until this is true, we're allowed to fall back to the hardcoded
+        // PRELOADED_STUDENTS sample data. After a real sync succeeds even once,
+        // we must NEVER silently fall back to the stale hardcoded data again -
+        // that was the root cause of edited/removed/renamed students still
+        // showing up ("ghost" records).
+        let hasSyncedOnce = false;
+
+        // Page Navigation Control
+        function navigateToPage(pageId) {
+            const searchPage = document.getElementById('page-search');
+            const reportPage = document.getElementById('page-report');
+            const printBtn = document.getElementById('nav-btn-print');
+            const editBtn = document.getElementById('nav-btn-edit');
+
+            if (pageId === 'report') {
+                searchPage.classList.add('hidden');
+                reportPage.classList.remove('hidden');
+                if (printBtn) printBtn.classList.remove('hidden');
+                if (editBtn) editBtn.classList.remove('hidden');
+                window.scrollTo(0, 0);
+            } else {
+                reportPage.classList.add('hidden');
+                searchPage.classList.remove('hidden');
+                if (printBtn) printBtn.classList.add('hidden');
+                if (editBtn) editBtn.classList.add('hidden');
+                window.scrollTo(0, 0);
+            }
+        }
+
+        function toggleEditorModal() {
+            document.getElementById('modal-notice').classList.remove('hidden');
+        }
+
+        function closeNoticeModal() {
+            document.getElementById('modal-notice').classList.add('hidden');
+        }
+
+        // Form Search Handlers
+        function handleSearch(event) {
+            if (event) event.preventDefault();
+            const studentInput = document.getElementById('input-search-student');
+            const testcodeInput = document.getElementById('input-search-testcode');
+            if (!studentInput || !testcodeInput) return;
+
+            const studentName = studentInput.value.trim();
+            const testCode = testcodeInput.value.trim();
+
+            if (!studentName || !testCode) {
+                showSearchError('입력 오류', '학생 이름과 시험지 코드를 모두 입력해 주세요.');
+                return;
+            }
+
+            generateReport(studentName, testCode);
+        }
+
+        function quickSelect(studentName, testCode) {
+            const studentInput = document.getElementById('input-search-student');
+            const testcodeInput = document.getElementById('input-search-testcode');
+            if (studentInput) studentInput.value = studentName;
+            if (testcodeInput) testcodeInput.value = testCode;
+            
+            generateReport(studentName, testCode);
+        }
+
+        function showSearchError(title, msg) {
+            const errBox = document.getElementById('search-error-box');
+            const errTitle = document.getElementById('search-error-title');
+            const errMsg = document.getElementById('search-error-msg');
+            if (errTitle) errTitle.innerText = title;
+            if (errMsg) errMsg.innerText = msg;
+            if (errBox) errBox.classList.remove('hidden');
+        }
+
+        function hideSearchError() {
+            const errBox = document.getElementById('search-error-box');
+            if (errBox) errBox.classList.add('hidden');
+        }
+
+        // Helper: normalize test code / student string for flexible search
+        function normalizeCode(str) {
+            if (!str) return '';
+            return str.toString().trim().toLowerCase().replace(/[\s\-_]/g, '');
+        }
+
+        // ==========================================================
+        // FIX #3: PRINT BUTTON
+        // window.print() must be called SYNCHRONOUSLY inside the click
+        // handler. The previous version wrapped it in setTimeout(...),
+        // which breaks the "user gesture" chain in several browsers
+        // (Safari in particular, and any embedded/iframed preview) -
+        // those browsers silently refuse to open the print dialog once
+        // the call is no longer directly inside the click event.
+        // ==========================================================
+        function triggerPrintReport() {
+            const reportPage = document.getElementById('page-report');
+            if (!currentReportData || reportPage.classList.contains('hidden')) {
+                showSearchError('인쇄 오류', '먼저 학습성과분석표를 조회한 후 인쇄를 진행해 주세요.');
+                return;
+            }
+
+            try {
+                window.print();
+            } catch (err) {
+                console.error('Print execution failed:', err);
+                showSearchError(
+                    '인쇄 창을 열 수 없습니다',
+                    '브라우저가 인쇄 창을 차단했습니다. 이 페이지를 새 탭에서 직접 열어(임베드/미리보기 화면이 아닌 상태) 다시 시도해 주세요.'
+                );
+            }
+        }
+
+        // Local Pre-loaded Database (Fallback / Initial Dataset)
+        const L1_TEST_DATA = {
+            id: 'L-1',
+            title: '학습성과분석표 (초등 4학년 L-1)',
+            subtitle: '초등 4학년 1학기 학력진단테스트 L-1 평가 리포트',
+            grade: '초등 3~4학년',
+            testName: '초4 진단테스트 L-1',
+            academy: '투탑수학전문학원 (북수교실)',
+            contentDomains: ['수와 연산', '도형과 측정', '자료와 가능성', '변화와 관계'],
+            evalDomains: ['계산력', '이해력', '추론력', '문제해결력'],
+            weeklyHistory: [
+                { period: '06/29~07/05', unit: '1. 큰 수 & 각도', count: 60, score: 78 },
+                { period: '07/06~07/12', unit: '2. 곱셈과 나눗셈', count: 60, score: 83 },
+                { period: '07/13~07/19', unit: '3. 평면도형의 이동', count: 60, score: 83 },
+                { period: '07/20~07/26', unit: '4. 막대그래프', count: 60, score: 77 },
+                { period: '07/27~08/02', unit: '5. 규칙 찾기', count: 40, score: 89 },
+            ],
+            questions: [
+                { id: 1, unit: '큰 수', topic: '만 단위 수 읽기', content: '수와 연산', eval: '계산력', answer: '2390040', mathText: '만이 239, 1이 40인 수', solution: '만 단위는 $239 \\times 10000 = 2390000$, 여기에 40을 더하면 $2390040$입니다.' },
+                { id: 2, unit: '큰 수', topic: '조 단위 수 표현', content: '수와 연산', eval: '이해력', answer: '④', mathText: '4000000000000 (4조) 인 기호', solution: '4 뒤에 0이 12개 붙어 있으므로 4조입니다. 따라서 ④번입니다.' },
+                { id: 3, unit: '큰 수', topic: '10000씩 띄어세기', content: '수와 연산', eval: '계산력', answer: '10000', mathText: '35000 - 45000 - 55000 - 65000 - 75000', solution: '각 수 사이에 $10000$씩 커지므로 $10000$씩 띄어 세었습니다.' },
+                { id: 4, unit: '각도', topic: '각의 합과 차 구하기', content: '도형과 측정', eval: '문제해결력', answer: '합: 145°, 차: 65°', mathText: '40°인 각과 105°인 각의 합과 차', solution: '합: $105^\\circ + 40^\\circ = 145^\\circ$, 차: $105^\\circ - 40^\\circ = 65^\\circ$입니다.' },
+                { id: 5, unit: '각도', topic: '삼각형 내각의 합', content: '도형과 측정', eval: '계산력', answer: '70°', mathText: '두 각이 60°, 50°인 삼각형의 남은 각', solution: '삼각형의 세 각의 합은 $180^\\circ$이므로 $180^\\circ - (60^\\circ + 50^\\circ) = 70^\\circ$입니다.' },
+                { id: 6, unit: '각도', topic: '삼각형 한 각의 크기', content: '도형과 측정', eval: '이해력', answer: '80°', mathText: '두 각의 크기가 55°, 45°인 삼각형의 한 각', solution: '$180^\\circ - (55^\\circ + 45^\\circ) = 80^\\circ$입니다.' },
+                { id: 7, unit: '곱셈', topic: '연속 곱셈 빈칸', content: '수와 연산', eval: '계산력', answer: '243, 6804', mathText: '$27 \\times 9$, 그리고 그 결과에 $\\times 28$', solution: '$27 \\times 9 = 243$, $243 \\times 28 = 6804$입니다.' },
+                { id: 8, unit: '곱셈', topic: '실생활 곱셈 문장제', content: '수와 연산', eval: '문제해결력', answer: '시금치', mathText: '$514 \\times 23$의 계산 결과를 따라갈 때 도착지', solution: '$514 \\times 23 = 11822$이므로 11822번 길인 시금치 쪽으로 갑니다.' },
+                { id: 9, unit: '나눗셈', topic: '나눗셈 몫의 크기 비교', content: '수와 연산', eval: '추론력', answer: '(1) > , (2) =', mathText: '(1) $540 \\div 60$ vs $720 \\div 90$, (2) $210 \\div 30$ vs $490 \\div 70$', solution: '(1) $9 > 8$ 이므로 $>$, (2) $7 = 7$ 이므로 $=$ 입니다.' },
+                { id: 10, unit: '도형의 이동', topic: '위쪽으로 뒤집기', content: '도형과 측정', eval: '이해력', answer: '②', mathText: '오른쪽 도형을 위쪽으로 뒤집었을 때의 모양', solution: '위쪽으로 뒤집으면 상하 반전이 이루어지므로 ②번 모양이 됩니다.' },
+                { id: 11, unit: '도형의 이동', topic: '돌리기 방향 매칭', content: '도형과 측정', eval: '이해력', answer: '(1) 가 (2) 라', solution: '(1) 시계방향 90도 돌리기는 (가), (2) 270도 돌리기는 (라)입니다.' },
+                { id: 12, unit: '도형의 이동', topic: '돌리고 뒤집기 연쇄', content: '도형과 측정', eval: '문제해결력', answer: '⑤', mathText: '숫자 5를 시계방향 90도 돌린 후 위쪽으로 뒤집은 모양', solution: '5를 돌린 후 위로 뒤집으면 ⑤번 숫자 형태가 나옵니다.' },
+                { id: 13, unit: '막대그래프', topic: '최대 독서 시간 요일', content: '자료와 가능성', eval: '이해력', answer: '목요일', mathText: '막대그래프에서 독서 시간이 가장 긴 요일', solution: '막대 높이가 가장 높은 요일은 목요일(150분)입니다.' },
+                { id: 14, unit: '막대그래프', topic: '학용품 구매 금액 해석', content: '자료와 가능성', eval: '계산력', answer: '1250원', mathText: '크레파스를 사는 데 사용한 금액', solution: '한 눈금이 100원을 의미하므로 크레파스 칸은 1250원입니다.' },
+                { id: 15, unit: '막대그래프', topic: '가로/세로 축 항목', content: '자료와 가능성', eval: '이해력', answer: '가로: 민속놀이, 세로: 학생 수', solution: '막대그래프에서 가로는 민속놀이 종류, 세로는 학생 수(명)를 나타냅니다.' },
+                { id: 16, unit: '막대그래프', topic: '최다/최소 간식 분석', content: '자료와 가능성', eval: '추론력', answer: '최다: 떡볶이, 최소: 빵', solution: '막대가 가장 높은 간식은 떡볶이, 가장 낮은 간식은 빵입니다.' },
+                { id: 17, unit: '규칙 찾기', topic: '수 배열표 규칙', content: '변화와 관계', eval: '추론력', answer: '2000', mathText: '2001에서 시작하여 아래쪽으로 증가하는 값', solution: '$2001 \\rightarrow 4001 \\rightarrow 6001$ 이므로 $2000$씩 커집니다.' },
+                { id: 18, unit: '규칙 찾기', topic: '찢어진 수 배열표 규칙', content: '변화와 관계', eval: '문제해결력', answer: '435', mathText: '335 아래, 635 위의 빈칸 수', solution: '행마다 100씩 커지는 규칙이므로 $335 + 100 = 435$ 입니다.' },
+                { id: 19, unit: '규칙 찾기', topic: '쌓기모형 개수 규칙', content: '변화와 관계', eval: '문제해결력', answer: '21개', mathText: '첫째(5), 둘째(9), 셋째(13), 넷째(17) 규칙에서 다섯째 모형 수', solution: '4개씩 늘어나는 규칙이므로 다섯째는 $17 + 4 = 21$개입니다.' },
+                { id: 20, unit: '규칙 찾기', topic: '도형 배열 규칙 문장', content: '변화와 관계', eval: '추론력', answer: 'ㄴ (4개씩 늘어납니다)', solution: '십자 모양으로 위/아래/좌/우 1개씩 총 4개씩 늘어납니다.' }
+            ]
+        };
+
+        const PRELOADED_TESTS_M_DATA = {
+            id: 'M',
+            title: '학습성과분석표 (고등 2학년 대수 M)',
+            subtitle: '고등 2학년 수학1/대수 학력진단테스트 M 평가 리포트',
+            grade: '고등 2학년',
+            testName: '고등 대수 진단테스트 M',
+            academy: '투탑수학전문학원 (북수교실)',
+            contentDomains: ['지수와 로그', '삼각함수', '수열'],
+            evalDomains: ['계산력', '이해력', '추론력', '문제해결력'],
+            weeklyHistory: [
+                { period: '1주차', unit: '1. 지수함수와 로그함수', count: 50, score: 85 },
+                { period: '2주차', unit: '2. 삼각함수의 활용', count: 60, score: 90 },
+                { period: '3주차', unit: '3. 등차수열과 등비수열', count: 55, score: 88 },
+                { period: '4주차', unit: '4. 수열의 합과 귀납법', count: 50, score: 95 }
+            ],
+            questions: [
+                { id: 1, unit: '삼각함수', topic: '부채꼴의 호의 길이와 넓이', content: '삼각함수', eval: '계산력', answer: '② 13π', mathText: '반지름 $r=6$, 중심각 $\\theta=\\frac{2}{3}\\pi$인 부채꼴 호의 길이와 넓이', solution: '호의 길이 $l = r\\theta = 4\\pi$, 넓이 $S = \\frac{1}{2}r^2\\theta = 12\\pi$' },
+                { id: 2, unit: '삼각함수', topic: '삼각방정식의 해', content: '삼각함수', eval: '이해력', answer: '④ x = 7/8 π', mathText: '$\\sin 2x = -\\frac{\\sqrt{2}}{2}$ 의 해', solution: '$2x = \\frac{5}{4}\\pi, \\frac{7}{4}\\pi \\Rightarrow x = \\frac{5}{8}\\pi, \\frac{7}{8}\\pi$' },
+                { id: 3, unit: '삼각함수', topic: '삼각함수의 값 구하기', content: '삼각함수', eval: '계산력', answer: '② √2', mathText: '$\\sin\\frac{\\pi}{4} + \\cos\\frac{\\pi}{4}$', solution: '$\\frac{\\sqrt{2}}{2} + \\frac{\\sqrt{2}}{2} = \\sqrt{2}$' },
+                { id: 4, unit: '삼각함수', topic: '삼각함수의 주기', content: '삼각함수', eval: '이해력', answer: '② 4/3 π', mathText: '$y = \\tan\\left(\\frac{3}{4}x\\right)$의 주기', solution: '주기 $T = \\frac{\\pi}{3/4} = \\frac{4}{3}\\pi$' },
+                { id: 5, unit: '삼각함수', topic: '삼각함수 값 계산', content: '삼각함수', eval: '계산력', answer: '180', mathText: '삼각함수 특수각의 값 계산', solution: '각도를 라디안으로 변환하여 값을 도출합니다.' },
+                { id: 6, unit: '삼각함수', topic: '사인법칙과 외접원 반지름', content: '삼각함수', eval: '문제해결력', answer: 'R = 3', mathText: '$\\frac{a}{\\sin A} = 2R$', solution: '사인법칙에 의해 외접원의 반지름 $R=3$입니다.' },
+                { id: 7, unit: '삼각함수', topic: '코사인법칙을 이용한 삼각형 판별', content: '삼각함수', eval: '추론력', answer: '⑤ C=90°인 직각이등변삼각형', mathText: '$a^2 + b^2 = c^2$ 관계 성립', solution: '피타고라스 정리와 코사인 법칙에 의해 $C=90^\\circ$인 직각이등변삼각형입니다.' },
+                { id: 8, unit: '삼각함수', topic: '두 동경의 위치 관계', content: '삼각함수', eval: '추론력', answer: '④ π/3', mathText: '두 동경이 일치하는 조건', solution: '$\\theta = \\frac{\\pi}{3}$' },
+                { id: 9, unit: '삼각함수', topic: '삼각형의 넓이 공식', content: '삼각함수', eval: '문제해결력', answer: '④ 7√7 / 4', mathText: '$S = \\frac{1}{2}ab\\sin C$', solution: '넓이 공식을 적용하여 계산합니다.' },
+                { id: 10, unit: '삼각함수', topic: '실생활 삼각함수 응용', content: '삼각함수', eval: '문제해결력', answer: '③ 20√2 cm²', mathText: '평행사변형 넓이', solution: '$S = ab\\sin\\theta = 20\\sqrt{2}\\text{ cm}^2$' },
+                { id: 11, unit: '수열', topic: '등차수열의 일반항', content: '수열', eval: '계산력', answer: '23', mathText: '첫째항이 3, 공차가 4인 등차수열의 6번째 항', solution: '$a_6 = 3 + 5 \\times 4 = 23$' },
+                { id: 12, unit: '수열', topic: '등차수열의 합', content: '수열', eval: '계산력', answer: '③ 436', mathText: '$S_n = \\frac{n(a_1+a_n)}{2}$', solution: '등차수열 합 공식을 적용합니다.' },
+                { id: 13, unit: '수열', topic: '등비수열의 일반항', content: '수열', eval: '이해력', answer: 'n = 11', mathText: '등비수열의 특정 항 구하기', solution: '$a_n = a_1 r^{n-1}$' },
+                { id: 14, unit: '수열', topic: '등비수열의 합', content: '수열', eval: '계산력', answer: 'k = 13', mathText: '$S_n = \\frac{a(r^n-1)}{r-1}$', solution: '공식 계산을 통해 $k=13$을 구합니다.' },
+                { id: 15, unit: '수열', topic: '시그마(Σ) 용법', content: '수열', eval: '이해력', answer: '③ 121/2 a', mathText: '$\\sum_{k=1}^n k$ 성질 활용', solution: '시그마 성질을 적용하여 정돈합니다.' },
+                { id: 16, unit: '수열', topic: '수열의 귀납적 정의', content: '수열', eval: '추론력', answer: '④ 95', mathText: '점화식 $a_{n+1} = a_n + d$', solution: '순차적 대입을 통해 $a_5 = 95$를 구합니다.' },
+                { id: 17, unit: '지수와 로그', topic: '지수 법칙 계산', content: '지수와 로그', eval: '계산력', answer: '0', mathText: '$2^0 = 1, a^0 = 1$', solution: '모든 수의 0제곱은 1입니다.' },
+                { id: 18, unit: '지수와 로그', topic: '로그의 성질', content: '지수와 로그', eval: '계산력', answer: '① 220', mathText: '$\\log_a xy = \\log_a x + \\log_a y$', solution: '로그 성질을 사용하여 간단히 정리합니다.' },
+                { id: 19, unit: '지수와 로그', topic: '상용로그의 활용', content: '지수와 로그', eval: '이해력', answer: '② log 21', mathText: '상용로그표 및 정수/소수 부분', solution: '$\\log 21$' },
+                { id: 20, unit: '지수와 로그', topic: '지수로그 응용', content: '지수와 로그', eval: '문제해결력', answer: '63', mathText: '방정식 및 실생활 응용', solution: '조건을 만족하는 값은 63입니다.' }
+            ]
+        };
+
+        const PRELOADED_TESTS = {
+            'L-1': L1_TEST_DATA,
+            '초4_L1': L1_TEST_DATA,
+            '초4-L1': L1_TEST_DATA,
+            '초4L1': L1_TEST_DATA,
+            'M': PRELOADED_TESTS_M_DATA,
+            '고등_M': PRELOADED_TESTS_M_DATA,
+            '고등-M': PRELOADED_TESTS_M_DATA,
+            '고등M': PRELOADED_TESTS_M_DATA,
+            '고2_M': PRELOADED_TESTS_M_DATA,
+            '고2M': PRELOADED_TESTS_M_DATA,
+        };
+
+        const PRELOADED_STUDENTS = [
+            {
+                studentName: '이영희',
+                testCode: '초4_L1',
+                grade: '초등 4학년',
+                attend: 12,
+                absent: 0,
+                userAnswers: ['2390040', '④', '10000', '합: 145°, 차: 65°', '70°', '80°', '243, 6804', '시금치', '(1) > , (2) =', '②', '(1) 가 (2) 라', '⑤', '목요일', '1250원', '가로: 민속놀이, 세로: 학생 수', '최다: 떡볶이, 최소: 빵', '2000', '435', '21개', 'ㄴ (4개씩 늘어납니다)']
+            },
+            {
+                studentName: '권하준',
+                testCode: 'L-1',
+                grade: '초등 4학년',
+                attend: 12,
+                absent: 0,
+                userAnswers: ['2390040', '④', '10000', '합: 145°, 차: 65°', '70°', '80°', '243, 6804', '시금치', '(1) > , (2) =', '②', '(1) 가 (2) 나', '⑤', '목요일', '1250원', '가로: 민속놀이, 세로: 학생 수', '최다: 떡볶이, 최소: 빵', '2000', '435', '17개', 'ㄴ (4개씩 늘어납니다)']
+            },
+            {
+                studentName: '이수현',
+                testCode: 'M',
+                grade: '고등 2학년',
+                attend: 15,
+                absent: 0,
+                userAnswers: ['② 13π', '④ x = 7/8 π', '② √2', '② 4/3 π', '180', 'R = 3', '⑤ C=90°인 직각이등변삼각형', '④ π/3', '④ 7√7 / 4', '③ 20√2 cm²', '23', '③ 436', 'n = 11', 'k = 13', '③ 121/2 a', '④ 95', '0', '① 220', '② log 21', '63']
+            },
+            {
+                studentName: '박민수',
+                testCode: '고등_M',
+                grade: '고등 2학년',
+                attend: 14,
+                absent: 1,
+                userAnswers: ['② 13π', '④ x = 7/8 π', '② √2', '② 4/3 π', '180', 'R = 3', '⑤ C=90°인 직각이등변삼각형', '④ π/3', '④ 7√7 / 4', '③ 20√2 cm²', '23', '③ 436', 'n = 11', 'k = 13', '③ 121/2 a', '④ 95', '0', '③ 230', '② log 21', '63']
+            },
+            {
+                studentName: '박수진',
+                testCode: '고등_M',
+                grade: '고등 2학년',
+                attend: 15,
+                absent: 0,
+                userAnswers: ['② 13π', '④ x = 7/8 π', '② √2', '② 4/3 π', '180', 'R = 3', '⑤ C=90°인 직각이등변삼각형', '④ π/3', '④ 7√7 / 4', '③ 20√2 cm²', '23', '③ 436', 'n = 11', 'k = 13', '③ 121/2 a', '④ 95', '0', '① 220', '② log 21', '63']
+            },
+            {
+                studentName: '김철수',
+                testCode: '초4_L1',
+                grade: '초등 4학년',
+                attend: 10,
+                absent: 2,
+                userAnswers: ['2390040', '④', '10000', '합: 145°, 차: 65°', '70°', '80°', '243, 6804', '시금치', '(1) > , (2) =', '②', '(1) 가 (2) 라', '⑤', '목요일', '1250원', '가로: 민속놀이, 세로: 학생 수', '최다: 떡볶이, 최소: 빵', '2000', '435', '21개', 'ㄴ (4개씩 늘어납니다)']
+            }
+        ];
+
+        // Match Google Sheets / Local DB and Generate Report
+        function generateReport(studentName, testCode) {
+            hideSearchError();
+
+            const rawStudent = studentName.trim();
+            const rawTestCode = testCode.trim();
+            const normStudent = rawStudent.toLowerCase();
+            const normTestCode = normalizeCode(rawTestCode);
+
+            // FIX #2: Once a real Google Sheets sync has ever succeeded, we must
+            // NEVER fall back to the hardcoded PRELOADED_STUDENTS sample data again
+            // - even if the latest sync temporarily returns 0 rows (e.g. transient
+            // network blip). Falling back silently is exactly what caused renamed/
+            // deleted students to still be "found" via the old hardcoded names.
+            // The hardcoded sample data is ONLY used before the very first sync.
+            const allStudents = hasSyncedOnce
+                ? sheetStudentsData
+                : ((sheetStudentsData && sheetStudentsData.length > 0) ? sheetStudentsData : PRELOADED_STUDENTS);
+
+            const studentRecord = allStudents.find(s => {
+                const sNameMatch = s.studentName.trim().toLowerCase() === normStudent;
+                const sCodeNorm = normalizeCode(s.testCode);
+                const sCoreCode = sCodeNorm.replace(/^(초4|고등|고2)/, '');
+                const normCoreCode = normTestCode.replace(/^(초4|고등|고2)/, '');
+                const sCodeMatch = (sCodeNorm === normTestCode) || 
+                                   (sCodeNorm.includes(normTestCode)) || 
+                                   (normTestCode.includes(sCodeNorm)) ||
+                                   (sCoreCode.length > 0 && sCoreCode === normCoreCode);
+                return sNameMatch && sCodeMatch;
+            });
+
+            // Individual existence check for error diagnostics
+            const studentExists = allStudents.some(s => s.studentName.trim().toLowerCase() === normStudent);
+            const testCodeExists = allStudents.some(s => normalizeCode(s.testCode) === normTestCode || normalizeCode(s.testCode).includes(normTestCode)) || 
+                                   Boolean(sheetTestsData[rawTestCode] || PRELOADED_TESTS[rawTestCode] || PRELOADED_TESTS[normTestCode]);
+
+            // STRICT CHECK 1: If student record is NOT FOUND, present precise mismatch/missing error
+            if (!studentRecord) {
+                let errorTitle = '학생과 시험지 코드가 일치하지 않거나 데이터가 존재하지 않습니다.';
+                let errorMsg = '';
+
+                if (!studentExists && !testCodeExists) {
+                    errorMsg = `입력하신 학생 이름 ('${rawStudent}')과 시험지 코드 ('${rawTestCode}') 둘 다 DB에 존재하지 않습니다.`;
+                } else if (!studentExists) {
+                    errorMsg = `등록되지 않은 학생 이름입니다 ('${rawStudent}'). 구글 시트에 업데이트되었는지 또는 이름 오탈자를 확인해 주세요.`;
+                } else if (!testCodeExists) {
+                    errorMsg = `등록되지 않은 시험지 코드입니다 ('${rawTestCode}'). 데이터가 존재하지 않습니다.`;
+                } else {
+                    errorMsg = `학생 ('${rawStudent}')과 시험지 코드 ('${rawTestCode}')가 일치하지 않습니다. 이름과 시험지 코드가 올바르게 매칭되었는지 확인해 주세요.`;
+                }
+
+                showSearchError(errorTitle, errorMsg);
+                return;
+            }
+
+            // 2. Search for Test Metadata
+            let testMeta = sheetTestsData[rawTestCode] || PRELOADED_TESTS[rawTestCode] || PRELOADED_TESTS[normTestCode];
+
+            // Flexible case/symbol-insensitive search for metadata
+            if (!testMeta) {
+                const testKeys = Object.keys({ ...sheetTestsData, ...PRELOADED_TESTS });
+                const matchedKey = testKeys.find(k => {
+                    const kNorm = normalizeCode(k);
+                    const kCore = kNorm.replace(/^(초4|고등|고2)/, '');
+                    const normCore = normTestCode.replace(/^(초4|고등|고2)/, '');
+                    return kNorm === normTestCode || normTestCode.includes(kNorm) || kNorm.includes(normTestCode) || (kCore.length > 0 && kCore === normCore);
+                });
+                if (matchedKey) {
+                    testMeta = sheetTestsData[matchedKey] || PRELOADED_TESTS[matchedKey];
+                } else {
+                    testMeta = PRELOADED_TESTS['M'] || PRELOADED_TESTS['L-1']; // Fallback
+                }
+            }
+
+            // Build Active Report Data from VERIFIED student record
+            currentReportData = {
+                title: testMeta.title || `학습성과분석표 (${rawTestCode})`,
+                subtitle: testMeta.subtitle || `${rawTestCode} 학력진단테스트 평가 리포트`,
+                studentName: studentRecord.studentName,
+                grade: studentRecord.grade || testMeta.grade || '전 학년',
+                testName: `${testMeta.testName || rawTestCode} (${rawTestCode})`,
+                academy: testMeta.academy || '투탑수학전문학원',
+                attend: studentRecord.attend !== undefined ? studentRecord.attend : 12,
+                absent: studentRecord.absent !== undefined ? studentRecord.absent : 0,
+                contentDomains: testMeta.contentDomains || ['개념 이해', '유형 적용', '원리 활용', '응용 문제'],
+                evalDomains: testMeta.evalDomains || ['계산력', '이해력', '추론력', '문제해결력'],
+                weeklyHistory: testMeta.weeklyHistory || [
+                    { period: '1주차', unit: '기본 개념 연습', count: 50, score: 80 },
+                    { period: '2주차', unit: '유형 응용 풀이', count: 50, score: 85 },
+                    { period: '3주차', unit: '심화 단원 평가', count: 60, score: 82 },
+                    { period: '4주차', unit: '진단테스트', count: 40, score: 90 }
+                ],
+                questions: testMeta.questions.map((q, idx) => ({
+                    ...q,
+                    userAns: studentRecord.userAnswers[idx] !== undefined ? studentRecord.userAnswers[idx] : '미응답'
+                }))
+            };
+
+            // Update Search Query Badge
+            document.getElementById('badge-search-query').innerText = `${studentRecord.studentName} (${rawTestCode})`;
+
+            // Render Report on Page 2
+            renderReportUI();
+
+            // Navigate to Page 2
+            navigateToPage('report');
+        }
+
+        // Answer Correctness Helper
+        function isAnswerCorrect(userAns, correctAns) {
+            if (!userAns) return false;
+            const u = userAns.toString().trim().toLowerCase();
+            const c = correctAns.toString().trim().toLowerCase();
+            if (u === c) return true;
+            const uNum = parseFloat(u.replace(/[^0-9.-]/g, ''));
+            const cNum = parseFloat(c.replace(/[^0-9.-]/g, ''));
+            if (!isNaN(uNum) && !isNaN(cNum) && uNum === cNum) return true;
+            return false;
+        }
+
+        // Render Report Interface
+        function renderReportUI() {
+            if (!currentReportData) return;
+
+            // 1. Headers & Info Box
+            document.getElementById('report-title').innerText = currentReportData.title;
+            document.getElementById('report-subtitle').innerText = currentReportData.subtitle;
+            document.getElementById('info-student-name').innerText = currentReportData.studentName;
+            document.getElementById('info-grade').innerText = currentReportData.grade;
+            document.getElementById('info-test-name').innerText = currentReportData.testName;
+            document.getElementById('info-attend').innerText = currentReportData.attend;
+            document.getElementById('info-absent').innerText = currentReportData.absent;
+            document.getElementById('badge-academy').innerText = currentReportData.academy;
+            document.getElementById('footer-academy-name').innerText = currentReportData.academy + " / 스마트 분석 시스템";
+
+            // 2. Score Calculation
+            let correctCount = 0;
+            currentReportData.questions.forEach(q => {
+                if (isAnswerCorrect(q.userAns, q.answer)) correctCount++;
+            });
+
+            const totalCount = currentReportData.questions.length;
+            const overallScore = Math.round((correctCount / totalCount) * 100);
+
+            // Circle Score Gauge & Stair Graphic
+            document.getElementById('text-overall-score').innerText = overallScore;
+            document.getElementById('score-circle-path').setAttribute('stroke-dasharray', `${overallScore}, 100`);
+
+            updateStairGraphic(overallScore);
+
+            // 3. Domain Bars
+            renderContentDomainBars();
+            renderEvalDomainBars();
+
+            // 4. Overall Review Text
+            generateOverallReview(overallScore);
+
+            // 5. Trend Chart
+            renderTrendChart();
+
+            // 6. Question Analysis Table
+            renderQuestionTable();
+
+            // KaTeX Rendering
+            if (window.renderMathInElement) {
+                renderMathInElement(document.getElementById('page-report'), {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ]
+                });
+            }
+        }
+
+        // Update 5-Tier Stair Graphic
+        function updateStairGraphic(score) {
+            for (let i = 1; i <= 5; i++) {
+                const stair = document.getElementById(`stair-${i}`);
+                const pin = document.getElementById(`stair-pin-${i}`);
+                if (stair) stair.classList.remove('stair-active', 'ring-4', 'ring-mirae-orange');
+                if (pin) pin.classList.add('hidden');
+            }
+
+            let activeStep = 1;
+            let levelBadgeText = "보충 필요 (Level 5)";
+
+            if (score >= 90) {
+                activeStep = 5;
+                levelBadgeText = "최상위권 레벨 1 (90~100점)";
+            } else if (score >= 70) {
+                activeStep = 4;
+                levelBadgeText = "상위권 레벨 2 (70~90점)";
+            } else if (score >= 50) {
+                activeStep = 3;
+                levelBadgeText = "중위권 레벨 3 (50~70점)";
+            } else if (score >= 30) {
+                activeStep = 2;
+                levelBadgeText = "기초 완성 레벨 4 (30~50점)";
+            } else {
+                activeStep = 1;
+                levelBadgeText = "집중 보충 레벨 5 (0~30점)";
+            }
+
+            const targetStair = document.getElementById(`stair-${activeStep}`);
+            const targetPin = document.getElementById(`stair-pin-${activeStep}`);
+            
+            if (targetStair) targetStair.classList.add('stair-active', 'ring-4', 'ring-mirae-orange');
+            if (targetPin) targetPin.classList.remove('hidden');
+
+            document.getElementById('badge-level-text').innerText = levelBadgeText;
+        }
+
+        // Render Content Domain Bars
+        function renderContentDomainBars() {
+            const container = document.getElementById('container-content-bars');
+            container.innerHTML = '';
+
+            currentReportData.contentDomains.forEach(domain => {
+                const qList = currentReportData.questions.filter(q => q.content === domain);
+                let correct = 0;
+                qList.forEach(q => { if (isAnswerCorrect(q.userAns, q.answer)) correct++; });
+                const ratio = qList.length > 0 ? Math.round((correct / qList.length) * 100) : 0;
+
+                const barHtml = `
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span class="text-slate-700">${domain} (${correct}/${qList.length}문항)</span>
+                            <span class="text-mirae-blue">${ratio}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                            <div class="bg-gradient-to-r from-blue-500 to-mirae-blue h-3 rounded-full transition-all duration-700" style="width: ${ratio}%"></div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += barHtml;
+            });
+        }
+
+        // Render Cognitive Domain Bars
+        function renderEvalDomainBars() {
+            const container = document.getElementById('container-eval-bars');
+            container.innerHTML = '';
+
+            currentReportData.evalDomains.forEach(domain => {
+                const qList = currentReportData.questions.filter(q => q.eval === domain);
+                let correct = 0;
+                qList.forEach(q => { if (isAnswerCorrect(q.userAns, q.answer)) correct++; });
+                const ratio = qList.length > 0 ? Math.round((correct / qList.length) * 100) : 0;
+
+                let barColor = 'from-amber-400 to-mirae-orange';
+                if (domain === '추론력') barColor = 'from-emerald-400 to-teal-600';
+                if (domain === '문제해결력') barColor = 'from-indigo-400 to-indigo-600';
+
+                const barHtml = `
+                    <div>
+                        <div class="flex justify-between text-xs font-bold mb-1">
+                            <span class="text-slate-700">${domain} (${correct}/${qList.length}문항)</span>
+                            <span class="text-mirae-orange">${ratio}%</span>
+                        </div>
+                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                            <div class="bg-gradient-to-r ${barColor} h-3 rounded-full transition-all duration-700" style="width: ${ratio}%"></div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += barHtml;
+            });
+        }
+
+        // Auto Generate Review Text
+        function generateOverallReview(score) {
+            let highestContent = '', lowestContent = '', maxRatio = -1, minRatio = 101;
+
+            currentReportData.contentDomains.forEach(domain => {
+                const qList = currentReportData.questions.filter(q => q.content === domain);
+                let correct = 0;
+                qList.forEach(q => { if (isAnswerCorrect(q.userAns, q.answer)) correct++; });
+                const ratio = qList.length > 0 ? Math.round((correct / qList.length) * 100) : 0;
+
+                if (ratio > maxRatio) { maxRatio = ratio; highestContent = domain; }
+                if (ratio < minRatio) { minRatio = ratio; lowestContent = domain; }
+            });
+
+            let reviewText = `진단평가 결과 종합성취도는 <strong>${score}점</strong>으로 `;
+            if (score >= 85) {
+                reviewText += `우수한 수학적 개념 이해도와 안정적인 문제 해결력을 보이고 있습니다. `;
+            } else if (score >= 70) {
+                reviewText += `전반적으로 기본기가 잘 형성되어 있습니다. `;
+            } else {
+                reviewText += `핵심 개념 유형에 대한 집중 보충 학습이 필요한 상태입니다. `;
+            }
+
+            reviewText += `영역별 분석 결과, [<strong>${highestContent}</strong>] 영역의 성취도가 ${maxRatio}%로 우수하였으나, `;
+            reviewText += `[<strong>${lowestContent}</strong>] 영역(${minRatio}%)은 다소 오답률이 높아 오답 복습노트를 통한 꼼꼼한 재점검을 추천합니다.`;
+
+            document.getElementById('text-overall-review').innerHTML = reviewText;
+        }
+
+        // Render Chart.js Trend Graph
+        function renderTrendChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+
+            const labels = currentReportData.weeklyHistory.map(h => h.unit);
+            const counts = currentReportData.weeklyHistory.map(h => h.count);
+            const scores = currentReportData.weeklyHistory.map(h => h.score);
+
+            trendChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: '성취도 점수 (%)',
+                            data: scores,
+                            borderColor: '#84cc16',
+                            backgroundColor: '#84cc16',
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#84cc16',
+                            pointBorderWidth: 3,
+                            yAxisID: 'y1',
+                            tension: 0.2
+                        },
+                        {
+                            type: 'bar',
+                            label: '풀이 문항수 (개)',
+                            data: counts,
+                            backgroundColor: '#f59e0b',
+                            borderRadius: 6,
+                            yAxisID: 'y',
+                            barThickness: 28
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: '문항수', font: { size: 10, weight: 'bold' } },
+                            min: 0,
+                            max: 100,
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: '성취도(%)', font: { size: 10, weight: 'bold' } },
+                            min: 0,
+                            max: 100,
+                            grid: { drawOnChartArea: false }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 11, weight: '600' } }
+                        }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        // Render Question Analysis Table
+        function renderQuestionTable() {
+            const tbody = document.getElementById('table-questions-body');
+            tbody.innerHTML = '';
+
+            const filter = document.getElementById('select-filter-status').value;
+
+            currentReportData.questions.forEach(q => {
+                const isCorrect = isAnswerCorrect(q.userAns, q.answer);
+
+                if (filter === 'wrong' && isCorrect) return;
+                if (filter === 'correct' && !isCorrect) return;
+
+                const statusBadge = isCorrect 
+                    ? `<span class="bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-1 rounded-full text-xs inline-flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> 정답</span>`
+                    : `<span class="bg-rose-100 text-rose-800 font-extrabold px-2.5 py-1 rounded-full text-xs inline-flex items-center gap-1"><i class="fa-solid fa-circle-xmark"></i> 오답</span>`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition cursor-pointer";
+                tr.onclick = () => openQuestionModal(q.id);
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 text-center font-bold text-slate-500">${q.id}</td>
+                    <td class="py-3 px-3 font-semibold text-slate-800">${q.unit} <span class="text-[10px] text-slate-400 block font-normal">${q.content}</span></td>
+                    <td class="py-3 px-3 font-medium text-slate-700">${q.topic}</td>
+                    <td class="py-3 px-3 text-center"><span class="px-2 py-0.5 bg-slate-100 rounded text-[11px] font-bold text-slate-600">${q.eval}</span></td>
+                    <td class="py-3 px-3 text-center font-bold text-emerald-700">${q.answer}</td>
+                    <td class="py-3 px-3 text-center font-bold ${isCorrect ? 'text-slate-800' : 'text-rose-600 bg-rose-50/50'}">${q.userAns || '-'}</td>
+                    <td class="py-3 px-3 text-center">${statusBadge}</td>
+                    <td class="py-3 px-3 text-center">
+                        <button class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold transition">
+                            <i class="fa-solid fa-magnifying-glass"></i> 풀이
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Question Solution Modal Functions
+        function openQuestionModal(qId) {
+            const q = currentReportData.questions.find(item => item.id === qId);
+            if (!q) return;
+
+            document.getElementById('modal-q-badge').innerText = `Q${q.id}`;
+            document.getElementById('modal-q-title').innerText = `${q.unit} - ${q.topic}`;
+            document.getElementById('modal-q-text').innerHTML = q.mathText || q.topic;
+            document.getElementById('modal-q-answer').innerText = q.answer;
+            document.getElementById('modal-q-user').innerText = q.userAns || '미응답';
+            document.getElementById('modal-q-solution').innerHTML = q.solution;
+
+            const isCorrect = isAnswerCorrect(q.userAns, q.answer);
+            const userBox = document.getElementById('modal-q-user-box');
+            userBox.className = isCorrect ? "bg-emerald-50 p-3 rounded-lg border border-emerald-200" : "bg-rose-50 p-3 rounded-lg border border-rose-200";
+
+            document.getElementById('modal-question').classList.remove('hidden');
+
+            if (window.renderMathInElement) {
+                renderMathInElement(document.getElementById('modal-question'), {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ]
+                });
+            }
+        }
+
+        function closeQuestionModal() {
+            document.getElementById('modal-question').classList.add('hidden');
+        }
+
+        // CSV parsing helper
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n/);
+            const result = [];
+            for (let i = 0; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const row = [];
+                let inQuotes = false;
+                let currentCell = '';
+                for (let ch of lines[i]) {
+                    if (ch === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (ch === ',' && !inQuotes) {
+                        row.push(currentCell.trim());
+                        currentCell = '';
+                    } else {
+                        currentCell += ch;
+                    }
+                }
+                row.push(currentCell.trim());
+                result.push(row);
+            }
+            return result;
+        }
+
+        // ==========================================================
+        // FIX #1 & #2: LIVE GOOGLE SHEETS SYNC
+        //
+        // Root cause of both bugs: the old catch{} block displayed a
+        // "sync complete" message EVEN WHEN THE FETCH FAILED, and then
+        // silently kept using the hardcoded PRELOADED_STUDENTS array.
+        // So edits/renames in the real sheet never showed up, and old
+        // hardcoded names kept "working" - it looked like a successful
+        // sync but was actually just falling back to sample data.
+        //
+        // This version:
+        //  - uses cache: 'no-store' so the browser never returns a
+        //    cached CSV response
+        //  - checks response.ok and rejects non-CSV (login-page/HTML)
+        //    responses, which happens when the sheet isn't shared as
+        //    "Anyone with the link"
+        //  - NEVER reports success unless the fetch and parse actually
+        //    succeeded
+        //  - on genuine failure, shows a clear red status so you know
+        //    the data on screen might be stale, instead of a fake green
+        //    checkmark
+        //  - sets hasSyncedOnce = true only after a real, successful
+        //    parse, which stops generateReport() from ever falling back
+        //    to the hardcoded sample students again (fixes bug #2)
+        // ==========================================================
+        // Try a list of candidate URLs in order and return the text of the
+        // first one that responds with actual CSV. Throws a descriptive error
+        // if every candidate fails, instead of a bare "Failed to fetch".
+        async function fetchCsvWithFallback(urls, cacheBustSuffix) {
+            let lastError = null;
+
+            for (const baseUrl of urls) {
+                const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}_t=${cacheBustSuffix}`;
+                try {
+                    const res = await fetch(url, { cache: 'no-store' });
+                    if (!res.ok) {
+                        lastError = new Error(`HTTP ${res.status} 응답 (${url})`);
+                        continue;
+                    }
+                    const text = await res.text();
+
+                    // If the sheet isn't public ("링크가 있는 모든 사용자"), Google
+                    // returns an HTML sign-in page instead of CSV.
+                    const looksLikeHtml = /^\s*<(!doctype|html)/i.test(text);
+                    if (looksLikeHtml) {
+                        lastError = new Error('시트가 비공개 상태입니다. 구글 시트에서 "링크가 있는 모든 사용자 - 뷰어" 권한으로 공유해 주세요.');
+                        continue;
+                    }
+                    if (!text || !text.trim()) {
+                        lastError = new Error('빈 응답을 받았습니다.');
+                        continue;
+                    }
+                    return text; // success
+                } catch (err) {
+                    // A raw "Failed to fetch" TypeError means the request never
+                    // even reached the server - almost always a CORS block or
+                    // (if this page was opened as a local file) a file:// origin
+                    // restriction. Try the next candidate URL.
+                    lastError = err;
+                    continue;
+                }
+            }
+
+            // Every candidate failed - build one clear, actionable message.
+            if (window.location.protocol === 'file:') {
+                throw new Error('이 페이지가 로컬 파일(file://)로 열려 있어 구글시트에 접속할 수 없습니다. 웹 서버(GitHub Pages, Netlify 등)에 올려 https:// 주소로 열어 주세요.');
+            }
+            if (lastError && /failed to fetch/i.test(lastError.message || '')) {
+                throw new Error('네트워크 요청이 차단되었습니다 (Failed to fetch). 이 페이지가 미리보기/임베드(iframe) 안에서 열려 있다면, 새 탭에서 실제 배포 주소로 직접 열어 다시 시도해 주세요.');
+            }
+            throw (lastError || new Error('알 수 없는 오류로 동기화에 실패했습니다.'));
+        }
+
+        async function fetchSheetData() {
+            const statusEl = document.getElementById('status-sync');
+            const btnSync = document.getElementById('btn-sync-data');
+
+            if (statusEl) statusEl.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Google Sheets DB 실시간 동기화 중...`;
+            if (btnSync) btnSync.disabled = true;
+
+            try {
+                // Cache-busting timestamp shared across both requests this cycle.
+                const timestamp = Date.now();
+
+                // gviz/tq endpoint first (documented for external embedding /
+                // reliably sends CORS headers), export?format=csv as fallback.
+                const ansText = await fetchCsvWithFallback(
+                    [SHEET_ANSWERS_URL_GVIZ, SHEET_ANSWERS_URL_EXPORT],
+                    timestamp
+                );
+
+                const rows = parseCSV(ansText);
+                if (rows.length <= 1) {
+                    throw new Error('답안 시트에서 데이터 행을 찾을 수 없습니다.');
+                }
+
+                const parsedStudents = [];
+                let nameIdx = -1, codeIdx = -1, gradeIdx = -1, attendIdx = -1, absentIdx = -1, ansStartIdx = -1;
+                const headers = rows[0].map(h => h.trim().toLowerCase());
+
+                for (let c = 0; c < headers.length; c++) {
+                    const h = headers[c];
+                    if (h.includes('이름') || h.includes('성명') || h === 'studentname' || h === 'name') nameIdx = c;
+                    else if (h.includes('시험지') || h.includes('코드') || h === 'testcode' || h === 'code') codeIdx = c;
+                    else if (h.includes('학년') || h.includes('과정') || h === 'grade') gradeIdx = c;
+                    else if (h.includes('출석') || h === 'attend') attendIdx = c;
+                    else if (h.includes('결석') || h === 'absent') absentIdx = c;
+                    else if (h.startsWith('q1') || h.startsWith('q_1') || h.includes('문항1') || h.includes('답안')) {
+                        if (ansStartIdx === -1) ansStartIdx = c;
+                    }
+                }
+
+                // Default fallbacks for Google Sheet column structure: Col 1 = Name, Col 2 = Test Code
+                if (nameIdx === -1) nameIdx = 1;
+                if (codeIdx === -1) codeIdx = 2;
+                if (ansStartIdx === -1) ansStartIdx = 4;
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.length < 2) continue;
+
+                    const sName = row[nameIdx] ? row[nameIdx].trim() : (row[1] ? row[1].trim() : '');
+                    const tCode = row[codeIdx] ? row[codeIdx].trim() : (row[2] ? row[2].trim() : '');
+                    const grade = (gradeIdx !== -1 && row[gradeIdx]) ? row[gradeIdx].trim() : '고등 2학년';
+                    const attend = (attendIdx !== -1 && row[attendIdx]) ? parseInt(row[attendIdx]) || 12 : 12;
+                    const absent = (absentIdx !== -1 && row[absentIdx]) ? parseInt(row[absentIdx]) || 0 : 0;
+                    const answers = row.slice(ansStartIdx);
+
+                    if (sName && tCode) {
+                        parsedStudents.push({
+                            studentName: sName,
+                            testCode: tCode,
+                            grade: grade,
+                            attend: attend,
+                            absent: absent,
+                            userAnswers: answers
+                        });
+                    }
+                }
+
+                // Replace the roster completely with what's in the sheet right
+                // now - including when it's genuinely empty, so deletions in
+                // the sheet are reflected too (once synced at least once).
+                sheetStudentsData = parsedStudents;
+                hasSyncedOnce = true;
+
+                const now = new Date();
+                const timeLabel = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+                if (statusEl) {
+                    statusEl.className = "mt-3 text-xs font-semibold text-emerald-400 flex items-center gap-1";
+                    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> 구글 시트 DB 동기화 완료 (${sheetStudentsData.length}명 수록, ${timeLabel} 기준)`;
+                }
+            } catch (err) {
+                console.error('Sheet sync failed:', err);
+                // Be HONEST about failure instead of showing a fake success
+                // message. This is the key fix - the old code hid this error
+                // and silently used stale/hardcoded data instead.
+                if (statusEl) {
+                    statusEl.className = "mt-3 text-xs font-semibold text-rose-500 flex items-center gap-1";
+                    statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> 동기화 실패: ${err.message || '네트워크 오류'} — 화면에 표시되는 데이터가 최신이 아닐 수 있습니다.`;
+                }
+            } finally {
+                if (btnSync) btnSync.disabled = false;
+            }
+        }
+
+        // Init App
+        window.onload = function() {
+            fetchSheetData();
+            navigateToPage('search');
+        };
+    </script>
+</body>
+</html>
